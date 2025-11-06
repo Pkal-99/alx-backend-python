@@ -1,6 +1,6 @@
 import sqlite3
 import functools
-
+""" Db Connection"""git add 
 def with_db_connection(func):
     """Decorator to open and close a database connection around a function call."""
     @functools.wraps(func)
