@@ -2,6 +2,7 @@ import sqlite3
 import functools
 
 # Decorator: handles opening and closing the DB connection
+# Decorator that manages database transactions
 def with_db_connection(func):
     """Decorator to manage DB connection lifecycle."""
     @functools.wraps(func)
@@ -14,7 +15,7 @@ def with_db_connection(func):
         return result
     return wrapper_with_connection
 
-# Decorator: handles transaction management (commit/rollback)
+
 def transactional(func):
     """Decorator to manage DB transactions."""
     @functools.wraps(func)
