@@ -6,8 +6,9 @@ from .views import ConversationViewSet, MessageViewSet
 # This creates routes like:
 # /conversations/ (GET, POST)
 # /conversations/{id}/ (GET, PUT, DELETE)
-router = DefaultRouter()
+router = routers.DefaultRouter()
 router.register(r'conversations', ConversationViewSet, basename='conversation')
+router.register(r'messages', MessageViewSet, basename='message')
 
 # Define the nested URL pattern for messages
 message_list = MessageViewSet.as_view({
