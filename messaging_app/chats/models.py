@@ -38,7 +38,7 @@ class Conversation(models.Model):
     """
     Chat Conversation thread between two or more users.
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Many-to-Many relationship: A conversation has many users, 
     # and a user has many conversations.
     participants = models.ManyToManyField(
