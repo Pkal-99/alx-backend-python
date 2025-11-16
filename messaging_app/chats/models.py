@@ -28,7 +28,7 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=8, choices=ROLE_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    REQUIRED_FIELDS = ['email', 'first_name', 'last_name', 'role']
+    REQUIRED_FIELDS = ['email', 'first_name', 'last_name', 'password', 'role']
 
     def __str__(self):
         return self.username
@@ -38,18 +38,19 @@ class Conversation(models.Model):
     """
     Chat Conversation thread between two or more users.
     """
-    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Many-to-Many relationship: A conversation has many users, 
     # and a user has many conversations.
     participants = models.ManyToManyField(
         User,
+        settings.AUTH_USER_MODEL,
         related_name='conversations',
         help_text="The users participating in this conversation."
     )
     
     # Timestamps for tracking
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+   # updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         # Display the primary keys of the participants for quick identification
@@ -64,12 +65,13 @@ class Message(models.Model):
     """
     Represents a single message sent by a user within a conversation.
     """
-    
+    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Foreign Key: A message belongs to one conversation.
     conversation = models.ForeignKey(
         Conversation,
         on_delete=models.CASCADE, # Deleting a conversation deletes all its messages.
-        related_name='messages',
+        settings.AUTH_USER_MODEL,
+        related_name='Sent messages',
         help_text="The conversation this message belongs to."
     )
     
@@ -81,9 +83,9 @@ class Message(models.Model):
         null=True # Allows the sender field to be NULL if the user is deleted
     )
     
-    content = models.TextField(help_text="The text content of the message.")
-    timestamp = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
+    message_body = models.TextField(help_text="The text content of the message.")
+    sent_at = models.DateTimeField(auto_now_add=True)
+    #is_read = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['timestamp'] # Important for displaying messages in correct order
