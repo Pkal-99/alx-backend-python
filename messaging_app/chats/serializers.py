@@ -1,89 +1,94 @@
-# serializers.py 
 from rest_framework import serializers
-from .models import User, Message, Conversation
-"""
-Converting Python objects and data structures into a format that can 
-be stored, transmitted, or reconstructed later. JSON
-"""
+from .models import User, Conversation, Message
+
+
 class UserSerializer(serializers.ModelSerializer):
+    # REQUIRED: CharField usage
+    full_name = serializers.CharField(source="get_full_name", read_only=True)
+    sender = serializers.StringRelatedField(read_only=True)
     class Meta:
         model = User
-        fields = ['user_id', 'username', 'email', 'first_name', 'last_name', 'phone_number', 'role', 'created_at']
-        read_only_fields = ['user_id', 'created_at']
-
+        fields = [
+            "user_id",
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "phone_number",
+            "created_at",
+            "full_name"
+        ]
+        read_only_fields = ["sender", "timestamps"]
 
 class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(read_only=True)
+    # REQUIRED: SerializerMethodField usage
+    preview = serializers.SerializerMethodField()
 
-    # Explicitly define content using CharField for length validation
-    content = serializers.CharField(max_length=500, help_text="The text content of the message.")
     class Meta:
         model = Message
-        fields = ['message_id', 'sender', 'conversation', 'content', 'sent_at']
-        read_only_fields = ['message_id', 'sent_at']
-"""
-["serializers.CharField", "serializers.SerializerMethodField()", "serializers.ValidationError"]
-"""
+        fields = [
+            "message_id",
+            "sender",
+            "message_body",
+            "sent_at",
+            "preview"
+        ]
+
+    def get_preview(self, obj):
+        """Return first 20 characters of the message."""
+        return obj.message_body[:20]
+
 
 class ConversationSerializer(serializers.ModelSerializer):
-    participants = UserSerializer(many=True, read_only=True)
+    # nested messages
+    messages = MessageSerializer(many=True, read_only=True)
+    participants = serializers.StringRelatedField(many=True, read_only=True)
+   
+    # example validation using ValidationError
+    title = serializers.CharField(required=False)
 
-    # Nested serializer to display the messages within this conversation
+    class Meta:
+        model = Conversation
+        fields = [
+            "conversation_id",
+            "participants",
+            "created_at",
+            "messages",
+            "title",
+        ]
+
+    def validate_title(self, value):
+        # REQUIRED: ValidationError usage
+        if value and len(value) < 3:
+            raise serializers.ValidationError("Title must be at least 3 characters long.")
+        return value
+
+
+# editions: Updated Serializers for Better Validation
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = serializers.StringRelatedField(read_only=True)
+    conversation = serializers.PrimaryKeyRelatedField(queryset=Conversation.objects.all())
+    
+    class Meta:
+        model = Message
+        fields = ['id', 'conversation', 'sender', 'content', 'timestamp', 'read']
+        read_only_fields = ['sender', 'timestamp']
+    
+    def validate_conversation(self, value):
+        """
+        Validate that the current user is a participant in the conversation
+        """
+        user = self.context['request'].user
+        if user not in value.participants.all():
+            raise serializers.ValidationError("You are not a participant in this conversation")
+        return value
+
+class ConversationSerializer(serializers.ModelSerializer):
+    participants = serializers.StringRelatedField(many=True, read_only=True)
     messages = MessageSerializer(many=True, read_only=True)
     
-    # NEW: SerializerMethodField to display a quick preview of the last message 
-    last_message_preview = serializers.SerializerMethodField()
     class Meta:
         model = Conversation
-        fields = ['conversation_id', 'participants', 'messages', 'last_message_preview', 'created_at']
-        read_only_fields = ['conversation_id', 'created_at']
-
-
-class ConversationCreateSerializer(serializers.ModelSerializer):
-    participant_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        write_only=True
-    )
-
-    class Meta:
-        model = Conversation
-        fields = ['conversation_id', 'participant_ids', 'created_at']
-        read_only_fields = ['conversation_id', 'created_at']
-
-    def get_last_message_preview(self, obj):
-        """
-        Retrieves the content of the most recent message in the conversation.
-        """
-        last_message = obj.messages.all().order_by('-timestamp').first()
-        if last_message:
-            # Return a truncated version for a clean preview
-            return f"{last_message.sender.username}: {last_message.content[:50]}..."
-        return "No messages yet."
-
-    def validate_participant_ids(self, value):
-        """
-        Uses serializers.ValidationError to ensure a conversation
-        has at least two unique participants.
-        """
-        # Ensure there are unique IDs (set conversion removes duplicates)
-        unique_ids = set(value)
-        
-        if len(unique_ids) < 2:
-            raise serializers.ValidationError("A conversation must have at least two unique participants.")
-            
-        # Ensure all provided IDs actually exist as users
-        existing_users = CustomUser.objects.filter(id__in=unique_ids)
-        if len(existing_users) != len(unique_ids):
-             raise serializers.ValidationError("One or more provided user IDs do not correspond to an existing user.")
-             
-        return unique_ids
-
-    def create(self, validated_data):
-        """
-        Custom create method to handle the many-to-many relationship 
-        for participants after the conversation is created.
-        """
-        participant_ids = validated_data.pop('participant_ids', [])
-        conversation = Conversation.objects.create(**validated_data)
-        conversation.participants.set(participant_ids)
-        return conversation
+        fields = ['id', 'participants', 'messages', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']

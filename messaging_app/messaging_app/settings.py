@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third-party apps
     'rest_framework',# <-- Add this line
+    'rest_framework_simplejwt',
     # ... your custom apps
     'chats',
 ]
@@ -71,16 +72,20 @@ TEMPLATES = [
 ]
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'chats.auth.CustomJWTAuthentication',  # Use our custom JWT auth
+        'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-        # 'rest_framework.authentication.BasicAuthentication',
-        # 'rest_framework.authentication.TokenAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
+        # Add other authentication classes as needed
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Optional, for browsable API
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-        # 'rest_framework.permissions.AllowAny', # Example of another permission class
-        # 'rest_framework.permissions.IsAdminUser', # Example of another permission class
-    ),
+        # Add other permission classes as needed
+          
+    ],
     # ... other DRF settings if needed ...
 }
 WSGI_APPLICATION = 'messaging_app.wsgi.application'
