@@ -55,3 +55,29 @@ class RestrictAccessByTimeMiddleware:
 
         # Code to be executed for each request/response after the view is called
         return response
+    
+class OffensiveLanguageMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.request_log = defaultdict(list)  # {ip: [timestamps]}
+        self.lock = Lock()
+        self.limit = 5  # messages
+        self.window = 60  # seconds
+
+    def __call__(self, request):
+        if request.method == 'POST' and request.path.startswith("/chats/"):
+            ip = self.get_client_ip(request)
+            now = time.time()
+
+            with self.lock:
+                # Remove timestamps older than the window
+                self.request_log[ip] = [
+                    t for t in self.request_log[ip] if now - t < self.window
+                ]
+
+                if len(self.request_log[ip]) >= self.limit:
+                    return HttpResponseForbidden("403 Forbidden: Message rate limit exceeded (5 messages/minute).")
+
+                self.request_log[ip].append(now)
+
+        return self.get_response(request)
