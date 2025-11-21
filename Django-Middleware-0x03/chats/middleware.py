@@ -81,3 +81,21 @@ class OffensiveLanguageMiddleware:
                 self.request_log[ip].append(now)
 
         return self.get_response(request)
+    
+class RolePermissionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Only check role-based access for unsafe methods
+        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            user = getattr(request, "user", None)
+
+            if user and user.is_authenticated:
+                if user.role not in ["admin"]:  # You can add "moderator" if needed
+                    return HttpResponseForbidden("403 Forbidden: Insufficient role permissions.")
+            else:
+                return HttpResponseForbidden("403 Forbidden: Authentication required.")
+
+        return self.get_response(request)
+    
