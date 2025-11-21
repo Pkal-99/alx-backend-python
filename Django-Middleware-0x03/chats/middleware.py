@@ -23,6 +23,7 @@ class RestrictAccessByTimeMiddleware:
     Denies access between 9 PM (21:00) and 6 AM (06:00).
     """
 
+
     def __init__(self, get_response):
         """
         One-time configuration and initialization.
