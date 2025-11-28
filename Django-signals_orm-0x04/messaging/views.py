@@ -49,3 +49,11 @@ def sent_messages_view(request):
 def received_messages_view(request):
     messages = Message.objects.filter(receiver=request.user).select_related('sender')
     return render(request, 'messaging/received_messages.html', {'messages': messages})
+
+
+
+@login_required
+def inbox_view(request):
+    unread_messages = Message.unread_messages.for_user(request.user)  # Use the custom manager
+    
+    return render(request, 'messaging/inbox.html', {'unread_messages': unread_messages})
