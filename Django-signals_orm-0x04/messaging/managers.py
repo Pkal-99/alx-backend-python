@@ -1,6 +1,10 @@
 from django.db import models
 
-class UnreadMessagesManager(models.Manager):
+""" class UnreadMessagesManager(models.Manager):
     def for_user(self, user):
         # Optimize by retrieving only necessary fields
         return self.filter(receiver=user, read=False).only('id', 'content', 'timestamp', 'sender')
+"""
+class UnreadMessagesManager(models.Manager):
+    def unread_for_user(self, user):
+        return self.filter(receiver=user, read=False)

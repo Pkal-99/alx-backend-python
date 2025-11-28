@@ -51,8 +51,14 @@ def received_messages_view(request):
     return render(request, 'messaging/received_messages.html', {'messages': messages})
 
 
-@login_required
+""" @login_required
 def inbox_view(request):
     # Use the custom manager to get unread messages for the user
-    unread_messages = Message.unread_messages.for_user(request.user)  
-    return render(request, 'messaging/inbox.html', {'unread_messages': unread_messages})
+    unread = Message.unread.unread_for_user(request.user)  
+    return render(request, 'messaging/inbox.html', {'unread': unread})
+"""
+
+@login_required
+def inbox(request):
+    unread_messages = Message.unread.unread_for_user(request.user).select_related('sender').only('content', 'timestamp', 'sender__username')
+    return render(request, 'messaging/inbox.html', {'messages': unread_messages})
