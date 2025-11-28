@@ -10,7 +10,7 @@ urlpatterns = [
     path('sent_messages/', sent_messages_view, name='sent_messages'),
     path('received_messages/', received_messages_view, name='received_messages'),
     path('inbox/', inbox_view, name='inbox'),
-
+    
 ]
 
  
