@@ -1,0 +1,4 @@
+# Apply the Django Ingress resource
+kubectl apply -f ingress.yaml
+# Check the Ingress resource status:
+kubectl get ingress django-ingress
