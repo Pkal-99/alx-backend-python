@@ -1,4 +1,8 @@
+# Enable NGINX Ingress controller (once per cluster)
+minikube addons enable ingress
+
 # Apply the Django Ingress resource
 kubectl apply -f ingress.yaml
+
 # Check the Ingress resource status:
 kubectl get ingress django-ingress
