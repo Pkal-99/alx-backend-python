@@ -1,14 +1,21 @@
 pipeline {
     agent {
         docker {
-            image 'python:3.8-slim'
+            image 'python:3.10-slim'
+            args '-u root'
         }
     }
-    
+
+    environment {
+        DOCKER_HUB_CREDENTIALS = credentials('docker-hub-creds')
+        DOCKER_IMAGE = 'messaging-app'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out source code from GitHub...'
+                echo 'Pulling source code from GitHub...'
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/master']],
@@ -18,24 +25,28 @@ pipeline {
                         url: 'https://github.com/J-Mwema/alx-backend-python.git'
                     ]]
                 ])
+                sh 'git branch'
             }
         }
-        
+
         stage('Install Dependencies') {
             steps {
                 echo 'Installing Python dependencies...'
-                sh 'pip3 install -r messaging_app/requirements.txt'
+                sh '''
+                    pip3 install --upgrade pip
+                    pip3 install -r messaging_app/requirements.txt
+                    pip3 install pytest pytest-django pytest-cov
+                '''
             }
         }
-        
+
         stage('Run Tests with Pytest') {
             steps {
                 echo 'Running tests using pytest...'
                 sh '''
                     cd messaging_app
-                    pip3 install pytest pytest-django
-                    python3 manage.py migrate --noinput
-                    python3 -m pytest chats/tests.py -v --junitxml=test-results.xml
+                    python manage.py migrate --noinput
+                    pytest chats/tests.py -v --junitxml=test-results.xml --cov=chats --cov-report=xml:coverage.xml
                 '''
             }
             post {
@@ -44,36 +55,67 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Generate Test Report') {
             steps {
                 echo 'Generating test report...'
                 sh '''
                     cd messaging_app
-                    echo "Test Execution Report" > test-report.txt
-                    echo "=====================" >> test-report.txt
+                    echo "========================================" > test-report.txt
+                    echo "        TEST EXECUTION REPORT           " >> test-report.txt
+                    echo "========================================" >> test-report.txt
                     echo "Date: $(date)" >> test-report.txt
+                    echo "Build Number: ${BUILD_NUMBER}" >> test-report.txt
+                    echo "========================================" >> test-report.txt
                     echo "" >> test-report.txt
-                    python3 -m pytest chats/tests.py -v 2>&1 | tail -30 >> test-report.txt
+                    pytest chats/tests.py -v 2>&1 | tail -50 >> test-report.txt || true
                 '''
             }
             post {
                 always {
                     archiveArtifacts artifacts: 'messaging_app/test-report.txt', fingerprint: true
+                    archiveArtifacts artifacts: 'messaging_app/coverage.xml', fingerprint: true, allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+                script {
+                    sh '''
+                        cd messaging_app
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                echo 'Pushing Docker image to Docker Hub...'
+                script {
+                    sh '''
+                        echo ${DOCKER_HUB_CREDENTIALS_PSW} | docker login -u ${DOCKER_HUB_CREDENTIALS_USR} --password-stdin
+                        docker push ${DOCKER_HUB_CREDENTIALS_USR}/${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker push ${DOCKER_HUB_CREDENTIALS_USR}/${DOCKER_IMAGE}:latest
+                    '''
                 }
             }
         }
     }
-    
+
     post {
         always {
-            echo 'Pipeline completed.'
+            echo 'Pipeline execution completed.'
+            cleanWs()
         }
         success {
-            echo 'Pipeline succeeded!'
+            echo 'Pipeline succeeded! Docker image built and pushed successfully.'
         }
         failure {
-            echo 'Pipeline failed!'
+            echo 'Pipeline failed! Check the logs for details.'
         }
     }
 }
