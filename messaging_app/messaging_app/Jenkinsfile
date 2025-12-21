@@ -1,0 +1,79 @@
+pipeline {
+    agent {
+        docker {
+            image 'python:3.8-slim'
+        }
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code from GitHub...'
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/master']],
+                    extensions: [],
+                    userRemoteConfigs: [[
+                        credentialsId: 'github-creds',
+                        url: 'https://github.com/J-Mwema/alx-backend-python.git'
+                    ]]
+                ])
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing Python dependencies...'
+                sh 'pip3 install -r messaging_app/requirements.txt'
+            }
+        }
+        
+        stage('Run Tests with Pytest') {
+            steps {
+                echo 'Running tests using pytest...'
+                sh '''
+                    cd messaging_app
+                    pip3 install pytest pytest-django
+                    python3 manage.py migrate --noinput
+                    python3 -m pytest chats/tests.py -v --junitxml=test-results.xml
+                '''
+            }
+            post {
+                always {
+                    junit 'messaging_app/test-results.xml'
+                }
+            }
+        }
+        
+        stage('Generate Test Report') {
+            steps {
+                echo 'Generating test report...'
+                sh '''
+                    cd messaging_app
+                    echo "Test Execution Report" > test-report.txt
+                    echo "=====================" >> test-report.txt
+                    echo "Date: $(date)" >> test-report.txt
+                    echo "" >> test-report.txt
+                    python3 -m pytest chats/tests.py -v 2>&1 | tail -30 >> test-report.txt
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'messaging_app/test-report.txt', fingerprint: true
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline completed.'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
